@@ -7,13 +7,14 @@ const cors = require("cors");
 
 const studentRoutes = require("./routes/studentRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
+const courseRoutes = require("./routes/courseRoutes");
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use("/api/students", studentRoutes);
 app.use("/api/departments", departmentRoutes);
-
+app.use("/api/courses", courseRoutes);
 db.query("SELECT 1")
     .then(() => {
         console.log("MySQL database connected successfully");
