@@ -28,3 +28,7 @@ DESCRIBE enrollments;
 
 ALTER TABLE users
 ADD COLUMN role_id INT NULL;
+-- 6. CONNECT USERS TO ROLES
+ALTER TABLE users
+ADD CONSTRAINT fk_users_role
+FOREIGN KEY (role_id) REFERENCES roles(id);

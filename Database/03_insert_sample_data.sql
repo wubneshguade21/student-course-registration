@@ -61,3 +61,13 @@ VALUES
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 1, id
 FROM permissions;
+
+
+-- STUDENT ROLE PERMISSIONS
+INSERT INTO role_permissions (role_id, permission_id)
+VALUES
+(2, 5),
+(2, 9),
+(2, 13),
+(2, 14),
+(2, 16);
