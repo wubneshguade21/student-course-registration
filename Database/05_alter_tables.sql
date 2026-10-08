@@ -25,3 +25,6 @@ DESCRIBE students;
 DESCRIBE courses;
 DESCRIBE departments;
 DESCRIBE enrollments;
+
+ALTER TABLE users
+ADD COLUMN role_id INT NULL;
