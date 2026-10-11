@@ -2,7 +2,12 @@ const enrollmentModel = require("../models/enrollmentModel");
 
 const getAllEnrollments = async (req, res) => {
     try {
-        const enrollments = await enrollmentModel.getAllEnrollments();
+        const isAdmin = req.user.role === "admin";
+
+        const enrollments = await enrollmentModel.getAllEnrollments(
+            req.user.userId,
+            isAdmin
+        );
 
         res.status(200).json(enrollments);
     } catch (error) {
@@ -14,7 +19,13 @@ const getAllEnrollments = async (req, res) => {
 };
 const getEnrollmentById = async (req, res) => {
     try {
-        const enrollment = await enrollmentModel.getEnrollmentById(req.params.id);
+        const isAdmin = req.user.role === "admin";
+
+        const enrollment = await enrollmentModel.getEnrollmentById(
+            req.params.id,
+            req.user.userId,
+            isAdmin
+        );
 
         if (!enrollment) {
             return res.status(404).json({
@@ -30,26 +41,59 @@ const getEnrollmentById = async (req, res) => {
         });
     }
 };
+
+
 const createEnrollment = async (req, res) => {
     try {
         const { student_id, course_id } = req.body;
+        const isAdmin = req.user.role === "admin";
+
+        let studentId;
+
+        if (isAdmin) {
+            studentId = student_id;
+        } else {
+            studentId = await enrollmentModel.getStudentIdByUserId(
+                req.user.userId
+            );
+        }
+
+        if (!studentId) {
+            return res.status(404).json({
+                message: "Student record not found for this user"
+            });
+        }
+
+        if (!course_id) {
+            return res.status(400).json({
+                message: "course_id is required"
+            });
+        }
 
         const id = await enrollmentModel.createEnrollment(
-            student_id,
+            studentId,
             course_id
         );
 
-        res.status(201).json({
+        return res.status(201).json({
             message: "Enrollment created successfully",
             id: id
         });
     } catch (error) {
-        res.status(500).json({
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                message: "Student is already enrolled in this course"
+            });
+        }
+
+        return res.status(500).json({
             message: "Error creating enrollment",
             error: error.message
         });
     }
 };
+
+
 const updateEnrollment = async (req, res) => {
     try {
         const { student_id, course_id } = req.body;
@@ -76,10 +120,15 @@ const updateEnrollment = async (req, res) => {
         });
     }
 };
+
 const deleteEnrollment = async (req, res) => {
     try {
+        const isAdmin = req.user.role === "admin";
+
         const affectedRows = await enrollmentModel.deleteEnrollment(
-            req.params.id
+            req.params.id,
+            req.user.userId,
+            isAdmin
         );
 
         if (affectedRows === 0) {
@@ -88,16 +137,18 @@ const deleteEnrollment = async (req, res) => {
             });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             message: "Enrollment deleted successfully"
         });
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             message: "Error deleting enrollment",
             error: error.message
         });
     }
 };
+
+
 module.exports = {
     getAllEnrollments,
     getEnrollmentById,

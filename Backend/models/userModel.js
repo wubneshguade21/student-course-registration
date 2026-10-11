@@ -2,19 +2,37 @@ const db = require("../db");
 
 const getUserByEmail = async (email) => {
     const [rows] = await db.query(
-        "SELECT id, name, email, password FROM users WHERE email = ? AND deleted_at IS NULL",
+        `SELECT
+            users.id,
+            users.name,
+            users.email,
+            users.password,
+            users.role_id,
+            users.must_change_password,
+            roles.name AS role
+        FROM users
+        LEFT JOIN roles ON users.role_id = roles.id
+        WHERE users.email = ?
+        AND users.deleted_at IS NULL`,
         [email]
     );
+
     return rows[0];
 };
 
-const createUser = async (name, email, password) => {
-    const [result] = await db.query(
-        `INSERT INTO users
-        (name, email, password)
-        VALUES (?, ?, ?)`,
-        [name, email, password]
+const createUser = async (
+    name,
+    email,
+    password,
+    roleId = 2,
+    connection = db
+) => {
+    const [result] = await connection.query(
+        `INSERT INTO users (name, email, password, role_id)
+         VALUES (?, ?, ?, ?)`,
+        [name, email, password, roleId]
     );
+
     return result.insertId;
 };
 
