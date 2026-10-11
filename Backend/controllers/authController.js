@@ -1,9 +1,15 @@
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const db = require("../db");
 const userModel = require("../models/userModel");
 
 const registerUser = async (req, res) => {
+    let connection;
+
     try {
+        connection = await db.getConnection();
+
         const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
@@ -12,9 +18,29 @@ const registerUser = async (req, res) => {
             });
         }
 
-        const existingUser = await userModel.getUserByEmail(email);
+        const passwordRegex =
+            /^(?=.{8,}$)(?:(?=.*[A-Za-z])(?=.*\d)|(?=.*[A-Za-z])(?=.*[^A-Za-z\d\s])|(?=.*\d)(?=.*[^A-Za-z\d\s])).*$/;
 
-        if (existingUser) {
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters long and contain at least two of these: letters, numbers, and special symbols."
+            });
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedName = name.trim();
+
+        const [existingUsers] = await connection.query(
+            "SELECT id FROM users WHERE email = ?",
+            [normalizedEmail]
+        );
+
+        const [existingStudents] = await connection.query(
+            "SELECT id FROM students WHERE email = ?",
+            [normalizedEmail]
+        );
+
+        if (existingUsers.length > 0 || existingStudents.length > 0) {
             return res.status(409).json({
                 message: "Email already exists"
             });
@@ -22,24 +48,56 @@ const registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        await connection.beginTransaction();
+
         const userId = await userModel.createUser(
-            name,
-            email,
-            hashedPassword
+            normalizedName,
+            normalizedEmail,
+            hashedPassword,
+            2,
+            connection
         );
 
-        res.status(201).json({
-            message: "User registered successfully",
-            userId: userId
+        await connection.query(
+            `INSERT INTO students
+                (user_id, name, email, department_id)
+             VALUES (?, ?, ?, NULL)`,
+            [userId, normalizedName, normalizedEmail]
+        );
+
+        await connection.commit();
+
+        return res.status(201).json({
+            message: "Student registered successfully",
+            userId
         });
     } catch (error) {
-        console.error(error);
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error("Rollback error:", rollbackError.message);
+            }
+        }
 
-        res.status(500).json({
+        console.error("Registration error:", error.message);
+
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                message: "Email already exists"
+            });
+        }
+
+        return res.status(500).json({
             message: "Server error"
         });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
+
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -50,7 +108,8 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const existingUser = await userModel.getUserByEmail(email);
+        const normalizedEmail = email.trim().toLowerCase();
+        const existingUser = await userModel.getUserByEmail(normalizedEmail);
 
         if (!existingUser) {
             return res.status(401).json({
@@ -68,31 +127,117 @@ const loginUser = async (req, res) => {
                 message: "Invalid email or password"
             });
         }
-        const token = jwt.sign(
-    { userId: existingUser.id },
-    process.env.JWT_SECRET,
-    { expiresIn: "1h" }
-);
 
-        res.status(200).json({
+        const token = jwt.sign(
+            {
+                userId: existingUser.id,
+                role_id: existingUser.role_id,
+                role: existingUser.role,
+                must_change_password: existingUser.must_change_password
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        return res.status(200).json({
             message: "Login successful",
             userId: existingUser.id,
             name: existingUser.name,
             email: existingUser.email,
-             token: token
+            role_id: existingUser.role_id,
+            role: existingUser.role,
+           must_change_password: existingUser.must_change_password,
+       
+                token
         });
     } catch (error) {
-        console.error(error);
+        console.error("Login error:", error.message);
 
-        res.status(500).json({
-            message: "Server error",
-            error: error.message
-            
+        return res.status(500).json({
+            message: "Server error"
         });
     }
 };
 
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.user.userId;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                message: "Current password and new password are required"
+            });
+        }
+
+        const passwordRegex =
+            /^(?=.{8,}$)(?:(?=.*[A-Za-z])(?=.*\d)|(?=.*[A-Za-z])(?=.*[^A-Za-z\d\s])|(?=.*\d)(?=.*[^A-Za-z\d\s])).*$/;
+
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({
+                message: "New password must be at least 8 characters and contain at least two character types"
+            });
+        }
+
+        const [rows] = await db.query(
+            `SELECT id, password, must_change_password
+             FROM users
+             WHERE id = ? AND deleted_at IS NULL`,
+            [userId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        const user = rows[0];
+
+        const passwordMatch = await bcrypt.compare(
+            currentPassword,
+            user.password
+        );
+
+        if (!passwordMatch) {
+            return res.status(401).json({
+                message: "Current password is incorrect"
+            });
+        }
+
+        const samePassword = await bcrypt.compare(
+            newPassword,
+            user.password
+        );
+
+        if (samePassword) {
+            return res.status(400).json({
+                message: "New password must be different from current password"
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await db.query(
+            `UPDATE users
+             SET password = ?, must_change_password = 0
+             WHERE id = ?`,
+            [hashedPassword, userId]
+        );
+
+        return res.status(200).json({
+            message: "Password changed successfully"
+        });
+    } catch (error) {
+        console.error("Change password error:", error.message);
+
+        return res.status(500).json({
+            message: "Failed to change password"
+        });
+    }
+};
 module.exports = {
     registerUser,
-    loginUser 
+    loginUser,
+    changePassword
 };
