@@ -38,7 +38,8 @@ const createCourse = async (req, res) => {
             course_code,
             course_name,
             credit_hour,
-            department_id
+            department_id, year,
+            semester
         } = req.body;
 
         if (!course_code || !course_name || !credit_hour || !department_id) {
@@ -47,11 +48,13 @@ const createCourse = async (req, res) => {
             });
         }
 
-        const courseId = await courseModel.createCourse(
+                const courseId = await courseModel.createCourse(
             course_code,
             course_name,
             credit_hour,
-            department_id
+            department_id,
+            year,
+            semester
         );
 
         res.status(201).json({
@@ -68,7 +71,8 @@ const createCourse = async (req, res) => {
 };
 const updateCourse = async (req, res) => {
     try {
-        const { course_code, course_name, credit_hour, department_id } = req.body;
+        const { course_code, course_name, credit_hour, department_id ,year,
+            semester} = req.body;
         const { id } = req.params;
 
         if (!course_code || !course_name || !credit_hour || !department_id) {
@@ -82,7 +86,9 @@ const updateCourse = async (req, res) => {
             course_code,
             course_name,
             credit_hour,
-            department_id
+            department_id,
+            year,
+            semester
         );
 
         if (affectedRows === 0) {

@@ -31,6 +31,11 @@ const createDepartment = async (req, res) => {
         });
     } catch (error) {
         console.error("Error creating department:", error.message);
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                message: "This department already exists"
+            });
+        }
 
         res.status(500).json({
             message: "Failed to create department"

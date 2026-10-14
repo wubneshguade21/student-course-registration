@@ -9,9 +9,15 @@ const getUserByEmail = async (email) => {
             users.password,
             users.role_id,
             users.must_change_password,
-            roles.name AS role
+            roles.name AS role,
+            students.id AS student_id,
+            students.department_id AS department_id,
+            students.year AS year,
+            students.semester AS semester
         FROM users
         LEFT JOIN roles ON users.role_id = roles.id
+        LEFT JOIN students ON students.user_id = users.id
+            AND students.deleted_at IS NULL
         WHERE users.email = ?
         AND users.deleted_at IS NULL`,
         [email]
