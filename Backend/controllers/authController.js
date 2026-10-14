@@ -1,9 +1,7 @@
-
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 const userModel = require("../models/userModel");
-
 const registerUser = async (req, res) => {
     let connection;
 
@@ -97,7 +95,6 @@ const registerUser = async (req, res) => {
         }
     }
 };
-
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -146,9 +143,12 @@ const loginUser = async (req, res) => {
             email: existingUser.email,
             role_id: existingUser.role_id,
             role: existingUser.role,
-           must_change_password: existingUser.must_change_password,
-       
-                token
+            must_change_password: existingUser.must_change_password,
+            student_id: existingUser.student_id || null,
+            department_id: existingUser.department_id || null,
+            year: existingUser.year || null,
+            semester: existingUser.semester || null,
+            token
         });
     } catch (error) {
         console.error("Login error:", error.message);
@@ -158,7 +158,6 @@ const loginUser = async (req, res) => {
         });
     }
 };
-
 const changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
@@ -236,8 +235,92 @@ const changePassword = async (req, res) => {
         });
     }
 };
+const getMyPermissions = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        const [rows] = await db.query(
+            `SELECT p.name AS permission
+             FROM users AS u
+             JOIN role_permissions AS rp
+                ON u.role_id = rp.role_id
+             JOIN permissions AS p
+                ON rp.permission_id = p.id
+             WHERE u.id = ?
+               AND u.deleted_at IS NULL`,
+            [userId]
+        );
+
+        const permissions = rows.map((r) => r.permission);
+
+        return res.status(200).json({
+            permissions
+        });
+    } catch (error) {
+        console.error("Get permissions error:", error.message);
+
+        return res.status(500).json({
+            message: "Failed to load permissions"
+        });
+    }
+};
+const updateMyDepartment = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { department_id } = req.body;
+
+        if (!department_id) {
+            return res.status(400).json({
+                message: "department_id is required"
+            });
+        }
+        const [studentRows] = await db.query(
+            `SELECT id FROM students
+             WHERE user_id = ? AND deleted_at IS NULL`,
+            [userId]
+        );
+
+        if (studentRows.length === 0) {
+            return res.status(404).json({
+                message: "Student record not found for this user"
+            });
+        }
+
+        const studentId = studentRows[0].id;
+        const [deptRows] = await db.query(
+            `SELECT id, name FROM departments
+             WHERE id = ? AND deleted_at IS NULL`,
+            [department_id]
+        );
+
+        if (deptRows.length === 0) {
+            return res.status(400).json({
+                message: "Department not found"
+            });
+        }
+        await db.query(
+            `UPDATE students SET department_id = ?
+             WHERE id = ?`,
+            [department_id, studentId]
+        );
+
+        return res.status(200).json({
+            message: "Department updated successfully",
+            department_id: Number(department_id),
+            department_name: deptRows[0].name
+        });
+    } catch (error) {
+        console.error("Update department error:", error.message);
+
+        return res.status(500).json({
+            message: "Failed to update department"
+        });
+    }
+};
 module.exports = {
     registerUser,
     loginUser,
-    changePassword
+    changePassword,
+    getMyPermissions,
+    updateMyDepartment
 };

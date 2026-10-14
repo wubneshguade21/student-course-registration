@@ -4,14 +4,11 @@ const db = require("../db");
 const permissionMiddleware = (requiredPermission) => {
     return async (req, res, next) => {
         try {
-            // Check whether the user is authenticated
             if (!req.user || !req.user.userId) {
                 return res.status(401).json({
                     message: "Authentication required."
                 });
             }
-
-            // Check whether the user's role has the required permission
             const [rows] = await db.query(
                 `SELECT p.name
                  FROM users AS u
@@ -24,15 +21,11 @@ const permissionMiddleware = (requiredPermission) => {
                    AND p.name = ?`,
                 [req.user.userId, requiredPermission]
             );
-
-            // Deny access if the permission was not found
             if (rows.length === 0) {
                 return res.status(403).json({
                     message: "Forbidden. You do not have permission to perform this action."
                 });
             }
-
-            // Permission granted: continue to the next handler
             return next();
         } catch (error) {
             console.error(
