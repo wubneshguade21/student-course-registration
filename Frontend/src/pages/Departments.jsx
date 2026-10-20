@@ -88,12 +88,14 @@ export default function Departments() {
     }
   };
 
-  // ---------- FILTER ----------
-  const filteredDepartments = departments.filter((d) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return String(d.id).includes(q) || d.name.toLowerCase().includes(q);
-  });
+  // ---------- FILTER & SORT LOGIC ----------
+  const filteredDepartments = departments
+    .filter((d) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return String(d.id).includes(q) || d.name.toLowerCase().includes(q);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Layout>
@@ -110,9 +112,9 @@ export default function Departments() {
         </div>
       )}
 
-      {/* ADMIN: Add form. STUDENT: Search box. */}
-      {isAdmin ? (
-        <form onSubmit={handleCreate} className="mb-8 flex gap-3">
+      {/* ADMIN: Add form. */}
+      {isAdmin && (
+        <form onSubmit={handleCreate} className="mb-6 flex gap-3">
           <input
             type="text"
             value={name}
@@ -128,17 +130,18 @@ export default function Departments() {
             {creating ? "Creating..." : "Add Department"}
           </button>
         </form>
-      ) : (
-        <div className="mb-8">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by ID or name..."
-            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
       )}
+
+      {/* SEARCH BOX (Available for everyone) */}
+      <div className="mb-8">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search by name..."
+          className="w-full md:w-1/2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+      </div>
 
       {loading && (
         <p className="text-slate-500 dark:text-slate-400">
@@ -159,8 +162,8 @@ export default function Departments() {
           <table className="w-full">
             <thead className="bg-slate-100 dark:bg-slate-700">
               <tr>
-                <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                  ID
+                <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 w-20">
+                  #
                 </th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
                   Name
@@ -173,13 +176,14 @@ export default function Departments() {
               </tr>
             </thead>
             <tbody>
-              {filteredDepartments.map((dept) => (
+              {/* Sequential Numbering (index + 1) */}
+              {filteredDepartments.map((dept, index) => (
                 <tr
                   key={dept.id}
-                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750"
+                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                    {dept.id}
+                    {index + 1}
                   </td>
                   <td className="px-6 py-4 font-medium text-orange-500 dark:text-orange-400">
                     {editingId === dept.id ? (

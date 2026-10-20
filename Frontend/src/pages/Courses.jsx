@@ -34,11 +34,42 @@ export default function Courses() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
 
-  // Filter states
+  const [view, setView] = useState("grid");
+
   const [filterDept, setFilterDept] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSem, setFilterSem] = useState("all");
   const [search, setSearch] = useState("");
+
+  // ================= CSV DOWNLOAD LOGIC =================
+  const handleExport = () => {
+    if (visibleCourses.length === 0) return;
+    const exportData = visibleCourses.map((c, i) => ({
+      No: i + 1,
+      Code: c.course_code,
+      "Course Name": c.course_name,
+      Department: departmentName(c.department_id),
+      Credits: c.credit_hour,
+      Year: c.year || 1,
+      Semester: c.semester || 1,
+    }));
+    const headers = Object.keys(exportData[0]).join(",");
+    const rows = exportData.map((row) =>
+      Object.values(row)
+        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csvContent = [headers, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Courses_List.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  // ======================================================
 
   const fetchAll = async () => {
     try {
@@ -61,7 +92,6 @@ export default function Courses() {
     fetchAll();
   }, []);
 
-  // ተማሪ ሲሆን — የራሱን dept እንደ default አስቀምጥ
   useEffect(() => {
     if (!isAdmin && user?.department_id) {
       setFilterDept(String(user.department_id));
@@ -71,7 +101,6 @@ export default function Courses() {
   const departmentName = (id) =>
     departments.find((d) => d.id === id)?.name || "—";
 
-  // ---------- CREATE ----------
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.course_code.trim() || !form.course_name.trim()) return;
@@ -95,7 +124,6 @@ export default function Courses() {
     }
   };
 
-  // ---------- UPDATE ----------
   const startEdit = (course) => {
     setEditingId(course.id);
     setEditForm({
@@ -130,7 +158,6 @@ export default function Courses() {
     }
   };
 
-  // ---------- DELETE ----------
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this course?")) return;
     try {
@@ -141,35 +168,27 @@ export default function Courses() {
     }
   };
 
-  // ---------- FILTER LOGIC ----------
-  const visibleCourses = courses.filter((c) => {
-    // Department filter (ሁሉም ሰው ይጠቀማል)
-    if (filterDept !== "all") {
-      if (String(c.department_id) !== filterDept) return false;
-    }
-
-    // Year filter
-    if (filterYear !== "all") {
-      if (String(c.year) !== filterYear) return false;
-    }
-
-    // Semester filter
-    if (filterSem !== "all") {
-      if (String(c.semester) !== filterSem) return false;
-    }
-
-    // Search
-    const q = search.trim().toLowerCase();
-    if (q) {
-      const match =
-        String(c.id).includes(q) ||
-        c.course_code.toLowerCase().includes(q) ||
-        c.course_name.toLowerCase().includes(q);
-      if (!match) return false;
-    }
-
-    return true;
-  });
+  const visibleCourses = courses
+    .filter((c) => {
+      if (filterDept !== "all") {
+        if (String(c.department_id) !== filterDept) return false;
+      }
+      if (filterYear !== "all") {
+        if (String(c.year) !== filterYear) return false;
+      }
+      if (filterSem !== "all") {
+        if (String(c.semester) !== filterSem) return false;
+      }
+      const q = search.trim().toLowerCase();
+      if (q) {
+        const match =
+          c.course_code.toLowerCase().includes(q) ||
+          c.course_name.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => a.course_name.localeCompare(b.course_name));
 
   const resetFilters = () => {
     setFilterDept(
@@ -197,7 +216,6 @@ export default function Courses() {
         </div>
       )}
 
-      {/* ADMIN: Add Form */}
       {isAdmin && (
         <form
           onSubmit={handleCreate}
@@ -276,18 +294,25 @@ export default function Courses() {
         </form>
       )}
 
-      {/* Filter Bar */}
       <div className="mb-6 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
             🔍 Filter Courses
           </p>
-          <button
-            onClick={resetFilters}
-            className="text-xs text-orange-500 hover:text-orange-400 font-medium"
-          >
-            Reset
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleExport}
+              className="text-sm bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md font-medium transition"
+            >
+              📥 Export CSV
+            </button>
+            <button
+              onClick={resetFilters}
+              className="text-xs text-orange-500 hover:text-orange-400 font-medium"
+            >
+              Reset
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -342,7 +367,6 @@ export default function Courses() {
         </div>
       </div>
 
-      {/* Courses List */}
       {loading && (
         <p className="text-slate-500 dark:text-slate-400">Loading courses...</p>
       )}
@@ -366,171 +390,251 @@ export default function Courses() {
 
       {!loading && visibleCourses.length > 0 && (
         <>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-            Showing{" "}
-            <span className="font-semibold text-orange-500">
-              {visibleCourses.length}
-            </span>{" "}
-            course{visibleCourses.length !== 1 ? "s" : ""}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Showing{" "}
+              <span className="font-semibold text-orange-500">
+                {visibleCourses.length}
+              </span>{" "}
+              course{visibleCourses.length !== 1 ? "s" : ""}
+            </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleCourses.map((c) => (
-              <div
-                key={c.id}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-5 shadow-sm hover:shadow-md transition"
-              >
-                {editingId === c.id ? (
-                  /* EDIT MODE */
-                  <div className="space-y-2">
-                    <input
-                      value={editForm.course_code}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, course_code: e.target.value })
-                      }
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
-                    />
-                    <input
-                      value={editForm.course_name}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, course_name: e.target.value })
-                      }
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
-                    />
-                    <div className="flex gap-2">
+            <button
+              onClick={() => setView(view === "grid" ? "list" : "grid")}
+              className="flex items-center gap-2 bg-slate-200 dark:bg-slate-900 px-4 py-1.5 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition self-start border border-slate-300 dark:border-slate-700"
+              title={view === "grid" ? "Switch to List View" : "Switch to Grid View"}
+            >
+              <span className="text-lg leading-none">
+                {view === "grid" ? "☰" : "⊞"}
+              </span>
+              <span>{view === "grid" ? "List View" : "Grid View"}</span>
+            </button>
+          </div>
+
+          {view === "grid" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {visibleCourses.map((c, index) => (
+                <div
+                  key={c.id}
+                  className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-5 shadow-sm hover:shadow-md transition"
+                >
+                  {editingId === c.id ? (
+                    <div className="space-y-2">
                       <input
-                        type="number"
-                        value={editForm.credit_hour}
+                        value={editForm.course_code}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, course_code: e.target.value })
+                        }
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                      />
+                      <input
+                        value={editForm.course_name}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, course_name: e.target.value })
+                        }
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={editForm.credit_hour}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              credit_hour: e.target.value,
+                            })
+                          }
+                          className="w-20 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                        />
+                        <select
+                          value={editForm.year}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, year: e.target.value })
+                          }
+                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                        >
+                          {YEARS.map((y) => (
+                            <option key={y} value={y}>
+                              Y{y}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={editForm.semester}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, semester: e.target.value })
+                          }
+                          className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                        >
+                          {SEMESTERS.map((s) => (
+                            <option key={s} value={s}>
+                              S{s}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <select
+                        value={editForm.department_id}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            credit_hour: e.target.value,
+                            department_id: e.target.value,
                           })
                         }
-                        className="w-20 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
-                      />
-                      <select
-                        value={editForm.year}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, year: e.target.value })
-                        }
-                        className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
                       >
-                        {YEARS.map((y) => (
-                          <option key={y} value={y}>
-                            Y{y}
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
                           </option>
                         ))}
                       </select>
-                      <select
-                        value={editForm.semester}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, semester: e.target.value })
-                        }
-                        className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
-                      >
-                        {SEMESTERS.map((s) => (
-                          <option key={s} value={s}>
-                            S{s}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => handleUpdate(c.id)}
+                          className="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded py-1.5"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="flex-1 bg-slate-500 hover:bg-slate-400 text-white text-sm font-semibold rounded py-1.5"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                    <select
-                      value={editForm.department_id}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          department_id: e.target.value,
-                        })
-                      }
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded px-2 py-1 text-sm"
-                    >
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleUpdate(c.id)}
-                        className="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded py-1.5"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="flex-1 bg-slate-500 hover:bg-slate-400 text-white text-sm font-semibold rounded py-1.5"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* VIEW MODE */
-                  <>
-                    <div className="flex items-start justify-between mb-3">
-                      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-                        {c.course_code}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        #{c.id}
-                      </span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 leading-snug">
-                      {c.course_name}
-                    </h3>
-
-                    <div className="space-y-1.5 text-sm mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Department
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                          {c.course_code}
                         </span>
-                        <span className="font-medium text-slate-700 dark:text-slate-200 truncate ml-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          #{index + 1}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 leading-snug">
+                        {c.course_name}
+                      </h3>
+
+                      <div className="space-y-1.5 text-sm mb-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Department
+                          </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200 truncate ml-2">
+                            {departmentName(c.department_id)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Credits
+                          </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                            {c.credit_hour}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Year · Semester
+                          </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">
+                            Y{c.year || 1} · S{c.semester || 1}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isAdmin && (
+                        <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                          <button
+                            onClick={() => startEdit(c)}
+                            className="flex-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium py-1.5 rounded transition"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            className="flex-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium py-1.5 rounded transition"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {view === "list" && (
+            <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold w-16 text-center">#</th>
+                      <th className="px-6 py-4 font-semibold">Code</th>
+                      <th className="px-6 py-4 font-semibold">Name</th>
+                      <th className="px-6 py-4 font-semibold">Department</th>
+                      <th className="px-6 py-4 font-semibold text-center">Credits</th>
+                      <th className="px-6 py-4 font-semibold text-center">Year/Sem</th>
+                      {isAdmin && <th className="px-6 py-4 font-semibold text-right">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                    {visibleCourses.map((c, index) => (
+                      <tr
+                        key={c.id}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition"
+                      >
+                        <td className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
+                          {index + 1}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 text-xs font-bold px-2.5 py-1 rounded-full">
+                            {c.course_code}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                          {c.course_name}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                           {departmentName(c.department_id)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Credits
-                        </span>
-                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium">
                           {c.credit_hour}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">
-                          Year · Semester
-                        </span>
-                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                        </td>
+                        <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400">
                           Y{c.year || 1} · S{c.semester || 1}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isAdmin && (
-                      <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
-                        <button
-                          onClick={() => startEdit(c)}
-                          className="flex-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium py-1.5 rounded transition"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="flex-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium py-1.5 rounded transition"
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end gap-4">
+                              <button
+                                onClick={() => startEdit(c)}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(c.id)}
+                                className="text-red-600 dark:text-red-400 hover:text-red-800 font-medium"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </>
       )}
     </Layout>
