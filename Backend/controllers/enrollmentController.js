@@ -1,4 +1,5 @@
 const enrollmentModel = require("../models/enrollmentModel");
+const activityLogModel = require("../models/activityLogModel"); // Activity Log import
 
 const getAllEnrollments = async (req, res) => {
     try {
@@ -17,6 +18,7 @@ const getAllEnrollments = async (req, res) => {
         });
     }
 };
+
 const getEnrollmentById = async (req, res) => {
     try {
         const isAdmin = req.user.role === "admin";
@@ -41,7 +43,6 @@ const getEnrollmentById = async (req, res) => {
         });
     }
 };
-
 
 const createEnrollment = async (req, res) => {
     try {
@@ -75,6 +76,11 @@ const createEnrollment = async (req, res) => {
             course_id
         );
 
+        // LOG ACTIVITY
+        await activityLogModel.logActivity(
+            req.user.userId, "CREATE", "enrollment", `Course ID: ${course_id}`
+        );
+
         return res.status(201).json({
             message: "Enrollment created successfully",
             id: id
@@ -93,7 +99,6 @@ const createEnrollment = async (req, res) => {
     }
 };
 
-
 const updateEnrollment = async (req, res) => {
     try {
         const { student_id, course_id } = req.body;
@@ -109,6 +114,11 @@ const updateEnrollment = async (req, res) => {
                 message: "Enrollment not found"
             });
         }
+
+        // LOG ACTIVITY
+        await activityLogModel.logActivity(
+            req.user.userId, "UPDATE", "enrollment", `Enrollment ID: ${req.params.id}`
+        );
 
         res.status(200).json({
             message: "Enrollment updated successfully"
@@ -137,6 +147,11 @@ const deleteEnrollment = async (req, res) => {
             });
         }
 
+        // LOG ACTIVITY
+        await activityLogModel.logActivity(
+            req.user.userId, "DELETE", "enrollment", `Enrollment ID: ${req.params.id}`
+        );
+
         return res.status(200).json({
             message: "Enrollment deleted successfully"
         });
@@ -147,7 +162,6 @@ const deleteEnrollment = async (req, res) => {
         });
     }
 };
-
 
 module.exports = {
     getAllEnrollments,

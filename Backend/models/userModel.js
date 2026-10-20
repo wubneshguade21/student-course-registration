@@ -41,8 +41,40 @@ const createUser = async (
 
     return result.insertId;
 };
+const updateUserProfile = async (userId, name, email) => {
+    console.log("Updating userId:", userId, "name:", name, "email:", email);
+
+    
+    const [userResult] = await db.query(
+        `UPDATE users 
+         SET name = ?, email = ? 
+         WHERE id = ?`,
+        [name, email, userId]
+    );
+
+    console.log("Users affectedRows:", userResult.affectedRows);
+
+    
+    await db.query(
+        `UPDATE students 
+         SET name = ?, email = ? 
+         WHERE user_id = ?`,
+        [name, email, userId]
+    );
+
+    return userResult.affectedRows;
+};
+const resetPassword = async (userId, hashedPassword, mustChange = 1) => {
+    const [result] = await db.execute(
+        "UPDATE users SET password = ?, must_change_password = ? WHERE id = ?",
+        [hashedPassword, mustChange, userId]
+    );
+    return result.affectedRows;
+};
 
 module.exports = {
     getUserByEmail,
-    createUser
+    createUser,
+    updateUserProfile,
+    resetPassword
 };

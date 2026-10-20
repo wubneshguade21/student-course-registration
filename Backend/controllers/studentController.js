@@ -2,6 +2,8 @@ const studentModel = require("../models/studentModel");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const db = require("../db");
+const activityLogModel = require("../models/activityLogModel"); // NEW: Import activity log
+
 const getStudents = async (req, res) => {
     try {
         const students = await studentModel.getAllStudents();
@@ -124,6 +126,11 @@ const createStudent = async (req, res) => {
         await connection.commit();
         transactionStarted = false;
 
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "CREATE", "student", `${normalizedName} (${normalizedEmail})`
+        );
+
         return res.status(201).json({
             message: "Student and login account created successfully",
             studentId: studentResult.insertId,
@@ -183,6 +190,11 @@ const updateStudent = async (req, res) => {
             });
         }
 
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "UPDATE", "student", `${name} (${email})`
+        );
+
         res.status(200).json({
             message: "Student updated successfully"
         });
@@ -196,6 +208,9 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
     try {
         const { id } = req.params;
+        
+        // NEW: Fetch student first for the log
+        const student = await studentModel.getStudentById(id);
 
         const affectedRows = await studentModel.deleteStudent(id);
 
@@ -204,6 +219,11 @@ const deleteStudent = async (req, res) => {
                 message: "Student not found"
             });
         }
+
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "DELETE", "student", student ? `${student.name} (${student.email})` : `ID ${id}`
+        );
 
         res.status(200).json({
             message: "Student deleted successfully"
