@@ -13,3 +13,23 @@ export const getMyPermissions = () => api.get("/auth/permissions");
 
 export const updateMyDepartment = (department_id) =>
   api.put("/auth/department", { department_id });
+
+export const updateProfile = (data) => {
+  return api.put("/auth/profile", data);
+};
+
+export const getSystemSettings = () => {
+  return api.get("/auth/settings");
+};
+
+export const updateSystemSettings = (data) => {
+  return api.put("/auth/settings", data);
+};
+
+export const resetStudentPassword = (studentId) => {
+  return api.post(`/auth/reset-password/${studentId}`);
+};
+
+export const getActivities = () => {
+  return api.get("/auth/activities");
+};

@@ -23,6 +23,33 @@ export default function Enrollments() {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
 
+  // ================= CSV DOWNLOAD LOGIC =================
+  const handleExport = () => {
+    if (filteredEnrollments.length === 0) return;
+    const exportData = filteredEnrollments.map((e, i) => ({
+      No: i + 1,
+      ...(isAdmin && { Student: studentName(e.student_id) }),
+      Course: courseLabel(e.course_id),
+      "Registered At": new Date(e.registered_at).toLocaleString(),
+    }));
+    const headers = Object.keys(exportData[0]).join(",");
+    const rows = exportData.map((row) =>
+      Object.values(row)
+        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csvContent = [headers, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Enrollments_List.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  // ======================================================
+
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -49,11 +76,6 @@ export default function Enrollments() {
     fetchAll();
   }, []);
 
-  // ============================================
-  // የሚመረጡ ኮርሶች ዝርዝር
-  // - Admin: ሁሉንም ኮርሶች
-  // - Student: የራሱ department ኮርሶች ብቻ
-  // ============================================
   const selectableCourses = isAdmin
     ? allCourses
     : allCourses.filter(
@@ -100,16 +122,23 @@ export default function Enrollments() {
     }
   };
 
-  // Filter enrollments by search
-  const filteredEnrollments = enrollments.filter((e) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      String(e.id).includes(q) ||
-      studentName(e.student_id).toLowerCase().includes(q) ||
-      courseLabel(e.course_id).toLowerCase().includes(q)
-    );
-  });
+  const filteredEnrollments = enrollments
+    .filter((e) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(e.id).includes(q) ||
+        studentName(e.student_id).toLowerCase().includes(q) ||
+        courseLabel(e.course_id).toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (isAdmin) {
+        return studentName(a.student_id).localeCompare(studentName(b.student_id));
+      } else {
+        return courseLabel(a.course_id).localeCompare(courseLabel(b.course_id));
+      }
+    });
 
   return (
     <Layout>
@@ -124,7 +153,6 @@ export default function Enrollments() {
         </div>
       )}
 
-      {/* Enroll form */}
       <form
         onSubmit={handleCreate}
         className={`mb-4 grid grid-cols-1 ${
@@ -152,9 +180,7 @@ export default function Enrollments() {
           className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="">
-            {isAdmin
-              ? "Select course"
-              : "Select course (your department)"}
+            {isAdmin ? "Select course" : "Select course (your department)"}
           </option>
           {selectableCourses.map((c) => (
             <option key={c.id} value={c.id}>
@@ -172,27 +198,27 @@ export default function Enrollments() {
         </button>
       </form>
 
-      {/* ባዶ ኮርሶች ሲሆኑ */}
       {!isAdmin && selectableCourses.length === 0 && !loading && (
         <div className="mb-8 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 p-4 rounded-lg border border-yellow-300 dark:border-yellow-700">
-          ⚠️ No courses available in your department. Please contact the
-          administrator.
+          ⚠️ No courses available in your department. Please contact the administrator.
         </div>
       )}
 
-      {/* Search */}
-      <div className="mb-8">
+      {/* Search & Export */}
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={
-            isAdmin
-              ? "Search by ID, student or course..."
-              : "Search by ID or course..."
-          }
-          className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+          placeholder={isAdmin ? "Search by ID, student or course..." : "Search by ID or course..."}
+          className="w-full md:w-1/2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
+        <button
+          onClick={handleExport}
+          className="bg-green-600 hover:bg-green-500 text-white font-semibold px-4 py-2.5 rounded-lg transition"
+        >
+          📥 Export CSV
+        </button>
       </div>
 
       {loading && (
@@ -203,9 +229,7 @@ export default function Enrollments() {
 
       {!loading && filteredEnrollments.length === 0 && (
         <p className="text-slate-500 dark:text-slate-400">
-          {search
-            ? "No enrollments match your search."
-            : "No enrollments found."}
+          {search ? "No enrollments match your search." : "No enrollments found."}
         </p>
       )}
 
@@ -215,7 +239,7 @@ export default function Enrollments() {
             <thead className="bg-slate-100 dark:bg-slate-700">
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                  ID
+                  #
                 </th>
                 {isAdmin && (
                   <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -234,13 +258,13 @@ export default function Enrollments() {
               </tr>
             </thead>
             <tbody>
-              {filteredEnrollments.map((e) => (
+              {filteredEnrollments.map((e, index) => (
                 <tr
                   key={e.id}
-                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750"
+                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
-                    {e.id}
+                    {index + 1}
                   </td>
                   {isAdmin && (
                     <td className="px-6 py-4 font-medium text-orange-500 dark:text-orange-400">

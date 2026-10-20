@@ -35,6 +35,35 @@ export default function Students() {
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [search, setSearch] = useState("");
 
+  // ================= CSV DOWNLOAD LOGIC =================
+  const handleExport = () => {
+    if (filteredStudents.length === 0) return;
+    const exportData = filteredStudents.map((s, i) => ({
+      No: i + 1,
+      Name: s.name,
+      Email: s.email,
+      Department: departmentName(s.department_id),
+      Year: s.year || 1,
+      Semester: s.semester || 1,
+    }));
+    const headers = Object.keys(exportData[0]).join(",");
+    const rows = exportData.map((row) =>
+      Object.values(row)
+        .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csvContent = [headers, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Students_List.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  // ======================================================
+
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -102,7 +131,8 @@ export default function Students() {
     setEditingId(null);
     setEditForm(EMPTY_FORM);
   };
- const handleUpdate = async (id) => {
+
+  const handleUpdate = async (id) => {
     setError("");
     setSuccess("");
 
@@ -132,15 +162,18 @@ export default function Students() {
       setError(err.response?.data?.message || "Failed to delete student");
     }
   };
-  const filteredStudents = students.filter((s) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      String(s.id).includes(q) ||
-      s.name.toLowerCase().includes(q) ||
-      s.email.toLowerCase().includes(q)
-    );
-  });
+
+  const filteredStudents = students
+    .filter((s) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        String(s.id).includes(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <Layout>
@@ -161,7 +194,7 @@ export default function Students() {
         </div>
       )}
 
-      {isAdmin ? (
+      {isAdmin && (
         <form
           onSubmit={handleCreate}
           className="mb-8 grid grid-cols-1 md:grid-cols-6 gap-3"
@@ -224,24 +257,33 @@ export default function Students() {
             {creating ? "..." : "Add"}
           </button>
         </form>
-      ) : (
-        <div className="mb-8">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email..."
-            className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
       )}
+
+      {/* SEARCH BOX & EXPORT BUTTON */}
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍 Search by name, email, or ID..."
+          className="w-full md:w-1/2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-400 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+        <button
+          onClick={handleExport}
+          className="bg-green-600 hover:bg-green-500 text-white font-semibold px-4 py-2.5 rounded-lg transition"
+        >
+          📥 Export CSV
+        </button>
+      </div>
 
       {loading && (
         <p className="text-slate-500 dark:text-slate-400">Loading students...</p>
       )}
 
       {!loading && filteredStudents.length === 0 && (
-        <p className="text-slate-500 dark:text-slate-400">No students found.</p>
+        <p className="text-slate-500 dark:text-slate-400">
+          {search ? "No students match your search." : "No students found."}
+        </p>
       )}
 
       {!loading && filteredStudents.length > 0 && (
@@ -249,7 +291,7 @@ export default function Students() {
           <table className="w-full">
             <thead className="bg-slate-100 dark:bg-slate-700">
               <tr>
-                <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">ID</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">#</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Name</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Email</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">Dept</th>
@@ -261,12 +303,12 @@ export default function Students() {
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map((s) => (
+              {filteredStudents.map((s, index) => (
                 <tr
                   key={s.id}
-                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750"
+                  className="border-t border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
-                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{s.id}</td>
+                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{index + 1}</td>
                   <td className="px-6 py-4 font-medium text-orange-500 dark:text-orange-400">
                     {editingId === s.id ? (
                       <input

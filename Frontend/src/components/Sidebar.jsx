@@ -1,12 +1,36 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getSystemSettings } from "../api/auth";
 
 export default function Sidebar({ collapsed, setCollapsed }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const isAdmin = user?.role === "admin";
+  // Bulletproof admin check
+  const isAdmin = 
+    user?.role?.toLowerCase() === "admin" || 
+    user?.role_id === 1;
+
+  // ---------- SYSTEM NAME ----------
+  const [systemName, setSystemName] = useState("Student Course Registration");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await getSystemSettings();
+        if (alive && res.data?.system_name) {
+          setSystemName(res.data.system_name);
+        }
+      } catch (err) {
+        console.error("Failed to load system name:", err);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // ---------- THEME ----------
   const [dark, setDark] = useState(() => {
@@ -27,7 +51,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
   const handleLogout = () => {
     logout();
-    navigate("/");   // ← changed from "/login" to "/"
+    navigate("/");
   };
 
   const linkClass = ({ isActive }) =>
@@ -46,10 +70,11 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       {/* TOP: brand + collapse */}
       <div className="px-3 py-5 border-b border-slate-700 flex items-center justify-between">
         {!collapsed && (
-          <h1 className="text-lg font-bold text-orange-500 leading-tight">
-            Student Course
-            <br />
-            Registration
+          <h1
+            className="text-lg font-bold text-orange-500 leading-tight break-words"
+            title={systemName}
+          >
+            {systemName}
           </h1>
         )}
         <button
@@ -122,6 +147,22 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             <span>{isAdmin ? "Enrollments" : "My Enrollments"}</span>
           )}
         </NavLink>
+
+        {/* ========== ACTIVITIES (Admin only) ========== */}
+        {isAdmin && (
+          <NavLink to="/activities" className={linkClass} title="Activity Log">
+            <span>⏱️</span>
+            {!collapsed && <span>Activity Log</span>}
+          </NavLink>
+        )}
+
+        {/* ========== SETTINGS (Admin only) ========== */}
+        {isAdmin && (
+          <NavLink to="/settings" className={linkClass} title="Settings">
+            <span>⚙️</span>
+            {!collapsed && <span>Settings</span>}
+          </NavLink>
+        )}
       </nav>
 
       {/* FOOTER: theme + logout */}
