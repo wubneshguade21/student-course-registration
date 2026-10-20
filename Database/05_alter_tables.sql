@@ -1,26 +1,25 @@
 USE student_course_registration;
 
--- 1. DEPARTMENTS
+
 ALTER TABLE departments
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL;
 
--- 2. STUDENTS
 ALTER TABLE students
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL,
 ADD INDEX idx_email (email);
 
--- 3. COURSES
+
 ALTER TABLE courses
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL,
 ADD INDEX idx_course_code (course_code);
 
-4.
+
 DESCRIBE students;
 DESCRIBE courses;
 DESCRIBE departments;
@@ -28,7 +27,30 @@ DESCRIBE enrollments;
 
 ALTER TABLE users
 ADD COLUMN role_id INT NULL;
--- 6. CONNECT USERS TO ROLES
+
 ALTER TABLE users
 ADD CONSTRAINT fk_users_role
 FOREIGN KEY (role_id) REFERENCES roles(id);
+<<<<<<< Updated upstream
+=======
+
+ALTER TABLE courses
+ADD CONSTRAINT uq_courses_course_code
+UNIQUE (course_code);
+
+ALTER TABLE courses
+ADD COLUMN year INT NULL AFTER credit_hour,
+ADD COLUMN semester INT NULL AFTER year;
+
+ALTER TABLE students
+ADD COLUMN year INT NULL AFTER department_id,
+ADD COLUMN semester INT NULL AFTER year;
+
+UPDATE courses
+SET year = 1, semester = 1
+WHERE year IS NULL;
+
+UPDATE students
+SET year = 1, semester = 1
+WHERE year IS NULL;
+>>>>>>> Stashed changes
