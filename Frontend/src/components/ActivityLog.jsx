@@ -56,9 +56,6 @@ export default function Activities() {
     <Layout>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-orange-500 mb-2">System Activity</h1>
-        <p className="text-slate-500 dark:text-slate-400">
-          Track all recent actions taken by administrators.
-        </p>
       </div>
 
       {loading ? (
