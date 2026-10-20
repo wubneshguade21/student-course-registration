@@ -1,4 +1,5 @@
 const courseModel = require("../models/courseModel");
+const activityLogModel = require("../models/activityLogModel"); // NEW: Import activity log model
 
 const getCourses = async (req, res) => {
     try {
@@ -13,6 +14,7 @@ const getCourses = async (req, res) => {
         });
     }
 };
+
 const getCourseById = async (req, res) => {
     try {
         const course = await courseModel.getCourseById(req.params.id);
@@ -32,6 +34,7 @@ const getCourseById = async (req, res) => {
         });
     }
 };
+
 const createCourse = async (req, res) => {
     try {
         const {
@@ -48,13 +51,19 @@ const createCourse = async (req, res) => {
             });
         }
 
-                const courseId = await courseModel.createCourse(
+        const courseId = await courseModel.createCourse(
             course_code,
             course_name,
             credit_hour,
             department_id,
             year,
             semester
+        );
+        await activityLogModel.logActivity(
+            req.user.userId, 
+            "CREATE", 
+            "course", 
+            `${course_code} - ${course_name}`
         );
 
         res.status(201).json({
@@ -69,6 +78,7 @@ const createCourse = async (req, res) => {
         });
     }
 };
+
 const updateCourse = async (req, res) => {
     try {
         const { course_code, course_name, credit_hour, department_id ,year,
@@ -96,6 +106,12 @@ const updateCourse = async (req, res) => {
                 message: "Course not found"
             });
         }
+        await activityLogModel.logActivity(
+            req.user.userId, 
+            "UPDATE", 
+            "course", 
+            `${course_code} - ${course_name}`
+        );
 
         res.status(200).json({
             message: "Course updated successfully"
@@ -108,9 +124,11 @@ const updateCourse = async (req, res) => {
         });
     }
 };
+
 const deleteCourse = async (req, res) => {
     try {
         const { id } = req.params;
+        const course = await courseModel.getCourseById(id);
 
         const affectedRows = await courseModel.deleteCourse(id);
 
@@ -119,6 +137,12 @@ const deleteCourse = async (req, res) => {
                 message: "Course not found"
             });
         }
+        await activityLogModel.logActivity(
+            req.user.userId, 
+            "DELETE", 
+            "course", 
+            course ? `${course.course_code} - ${course.course_name}` : `Course ID ${id}`
+        );
 
         res.status(200).json({
             message: "Course deleted successfully"
@@ -131,6 +155,7 @@ const deleteCourse = async (req, res) => {
         });
     }
 };
+
 module.exports = {
     getCourses,getCourseById,createCourse,updateCourse,deleteCourse
 };
