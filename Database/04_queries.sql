@@ -1,10 +1,5 @@
 USE student_course_registration;
 
--- =========================
--- VIEW DATA
--- =========================
-
--- View all students
 SELECT *
 FROM students;
 
