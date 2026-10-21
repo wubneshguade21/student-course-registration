@@ -1,4 +1,5 @@
 const departmentModel = require("../models/departmentModel");
+const activityLogModel = require("../models/activityLogModel"); // NEW: Import activity log
 
 const getDepartments = async (req, res) => {
     try {
@@ -25,12 +26,22 @@ const createDepartment = async (req, res) => {
 
         const departmentId = await departmentModel.createDepartment(name);
 
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "CREATE", "department", name
+        );
+
         res.status(201).json({
             message: "Department created successfully",
             id: departmentId
         });
     } catch (error) {
         console.error("Error creating department:", error.message);
+        if (error.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+                message: "This department already exists"
+            });
+        }
 
         res.status(500).json({
             message: "Failed to create department"
@@ -80,6 +91,11 @@ const updateDepartment = async (req, res) => {
             });
         }
 
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "UPDATE", "department", name
+        );
+
         res.status(200).json({
             message: "Department updated successfully"
         });
@@ -94,6 +110,9 @@ const updateDepartment = async (req, res) => {
 const deleteDepartment = async (req, res) => {
     try {
         const { id } = req.params;
+        
+        // NEW: Fetch department first to get the name for the log
+        const dept = await departmentModel.getDepartmentById(id);
 
         const affectedRows = await departmentModel.deleteDepartment(id);
 
@@ -102,6 +121,11 @@ const deleteDepartment = async (req, res) => {
                 message: "Department not found"
             });
         }
+
+        // NEW: Log Activity
+        await activityLogModel.logActivity(
+            req.user.userId, "DELETE", "department", dept ? dept.name : `ID ${id}`
+        );
 
         res.status(200).json({
             message: "Department deleted successfully"

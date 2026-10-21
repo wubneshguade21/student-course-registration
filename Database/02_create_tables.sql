@@ -98,10 +98,6 @@ CREATE TABLE role_permissions (
     role_id INT NOT NULL,
     permission_id INT NOT NULL,
     PRIMARY KEY (role_id, permission_id),
-<<<<<<< Updated upstream
-    FOREIGN KEY (role_id) REFERENCES roles(id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(id)
-=======
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
     FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
 );
@@ -123,5 +119,4 @@ CREATE TABLE settings (
     setting_key VARCHAR(100) NOT NULL UNIQUE,
     setting_value VARCHAR(255) NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
->>>>>>> Stashed changes
 );

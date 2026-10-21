@@ -10,6 +10,7 @@ const departmentRoutes = require("./routes/departmentRoutes");
 const courseRoutes = require("./routes/courseRoutes");
 const enrollmentRoutes = require("./routes/enrollmentRoutes");
 const authRoutes = require("./routes/authRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 const app = express();
 
 app.use(cors());
@@ -19,15 +20,16 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 db.query("SELECT 1")
     .then(() => {
         console.log("MySQL database connected successfully");
     })
-    .catch((error) => {
-        console.error("MySQL connection failed:", error.message);
+   
+  .catch((error) => {
+        console.error("Database connection failed:", error.message);
     });
-
 app.get("/", (req, res) => {
     res.send("Student Course Registration Backend is running");
 });
