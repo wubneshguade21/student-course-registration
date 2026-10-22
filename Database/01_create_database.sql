@@ -1,2 +1,1 @@
-CREATE DATABASE IF NOT EXISTS student_course_registration;
-USE student_course_registration;
+USE defaultdb;

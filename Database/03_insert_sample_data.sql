@@ -1,9 +1,9 @@
-USE student_course_registration;
+USE defaultdb;
 
 -- 1. Roles
 INSERT INTO roles (name) VALUES ('admin'), ('student');
 
--- 2. Admin User (Password: Admin@123)
+-- 2. Admin User (Password: Admin@1234)
 INSERT INTO users (name, email, password, role_id, must_change_password) 
 VALUES (
     'Admin', 

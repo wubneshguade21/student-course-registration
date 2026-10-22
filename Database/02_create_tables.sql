@@ -1,15 +1,4 @@
-USE student_course_registration;
-
-DROP TABLE IF EXISTS activity_logs;
-DROP TABLE IF EXISTS role_permissions;
-DROP TABLE IF EXISTS permissions;
-DROP TABLE IF EXISTS roles;
-DROP TABLE IF EXISTS settings;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS enrollments;
-DROP TABLE IF EXISTS courses;
-DROP TABLE IF EXISTS students;
-DROP TABLE IF EXISTS departments;
+USE defaultdb;
 
 -- 1. Departments
 CREATE TABLE departments (
