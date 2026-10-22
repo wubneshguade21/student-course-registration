@@ -2,11 +2,12 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'https://student-course-registration-backend-d5w8.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
